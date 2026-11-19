@@ -92,13 +92,23 @@ test('known-answer summary obeys RMSE squared equals bias squared plus SD square
 });
 test('real CSV sample invariants for all three methods without reporting investigation results', () => {
   const rows=parseHeartRateCsv(readFileSync(new URL('../data/heart_rate_week.csv',import.meta.url),'utf8'));
-  for(const n of [1,2,3,10,100,rows.length]) {
+  assert.notEqual(rows.length % 101,0);
+  for(const n of [1,2,3,10,100,101,rows.length]) {
     const results=[{sample:simpleRandomSample(rows,n,'verify')},systematicSample(rows,n,'verify')];
     if(n>=3) results.push(stratifiedSample(rows,n,'verify','activity_state'));
     for(const result of results) {
       assert.equal(result.sample.length,n);
       assert.equal(new Set(result.sample.map(r=>r.row_id)).size,n);
       assert.ok(result.sample.every(r=>rows.includes(r)));
+    }
+    assert.deepEqual(simpleRandomSample(rows,n,'verify'),simpleRandomSample(rows,n,'verify'));
+    assert.deepEqual(systematicSample(rows,n,'verify'),systematicSample(rows,n,'verify'));
+    if(n>=3) {
+      const stratified=stratifiedSample(rows,n,'verify','activity_state');
+      assert.deepEqual(stratified,stratifiedSample(rows,n,'verify','activity_state'));
+      assert.equal(stratified.strata.reduce((sum,item)=>sum+item.count,0),n);
+      assert.ok(stratified.strata.every(item=>Number.isInteger(item.count)&&item.count>=1&&item.count<=item.size));
+      assert.ok(Math.abs(stratified.strata.reduce((sum,item)=>sum+item.weight,0)-1)<1e-12);
     }
   }
 });

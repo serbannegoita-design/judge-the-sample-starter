@@ -64,7 +64,7 @@ export default function Stage3App({ rows, gaps, Timeline }) {
       <p className="hint">Displayed settings: <strong>n = {settings.n}; seed = {settings.seed}</strong>. {pending ? 'Edits are pending. Select Apply settings to update all three panels.' : 'The same seed and settings reproduce the same selections.'}</p>
       <p>These are <strong>single samples</strong>, not repeated-sampling experiment results. All three timelines share the same timestamp and heart-rate scales.</p>
       <div className="legend" aria-label="Chart legend"><span><i className="dot all"/>All recorded minutes</span><span><i className="dot selected"/>Sampled minute</span><span><i className="gap"/>No recording</span><span><i className="mean-key population"/>True population mean</span><span><i className="mean-key sample"/>Single sample estimate</span></div>
-      <p className="hint">Rows are chronological, but missing minutes are absent. Row number is not clock time. The timeline uses actual timestamps, and lines stop at recording gaps. Narrow gaps are listed below.</p>
+      <p className="hint">Rows are chronological, but missing minutes are absent. Row number is not clock time. The timeline uses actual timestamps, and lines stop at recording gaps. Narrow gaps are listed below. Interval sampling of an unordered list means something different from sampling a chronological record: positions in an unordered list describe file order, while positions here follow recorded time.</p>
     </section>
     <div className="aligned-timelines">
       <MethodPanel id="srs" name="Simple random sampling" result={results.srs} {...shared}>
