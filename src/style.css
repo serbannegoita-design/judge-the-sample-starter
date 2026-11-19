@@ -16,6 +16,12 @@ button { background: #175cc2; color: white; border-color: #175cc2; cursor: point
 button:hover { background: #104996; }
 :focus-visible { outline: 3px solid #dc8e17; outline-offset: 3px; }
 .hint { font-size: .88rem; color: #526174; }
+.aligned-timelines { display: grid; gap: 22px; margin-top: 22px; }
+.panel-means { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; padding: 16px 0; margin: 16px 0 0; border-top: 1px solid #dde3e9; }
+.rule { font-size: .95rem; }
+.method-panel details { padding: 12px 0 0; border: 0; border-top: 1px solid #dde3e9; border-radius: 0; }
+.method-panel .chart-scroll { margin-top: 12px; }
+#sample-size { width: 110px; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 20px; padding: 22px 0; margin: 18px 0 8px; border-top: 1px solid #dde3e9; border-bottom: 1px solid #dde3e9; }
 dt { font-size: .82rem; line-height: 1.5; }
 dd { margin: 8px 0 0; font-size: 1.65rem; font-weight: 650; font-variant-numeric: tabular-nums; }
