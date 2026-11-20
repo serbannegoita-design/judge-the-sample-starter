@@ -1,5 +1,11 @@
 const MINUTE = 60000;
 
+export async function loadHeartRatePopulation(url, fetchImpl = fetch, signal) {
+  const response = await fetchImpl(url, { signal });
+  if (!response.ok) throw new Error(`Could not load heart-rate data (HTTP ${response.status}) from ${url}.`);
+  return parseHeartRateCsv(await response.text());
+}
+
 // Treat device-local timestamps as a clock coordinate, without timezone or DST conversion.
 export function parseDeviceMinute(timestamp) {
   const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(timestamp);

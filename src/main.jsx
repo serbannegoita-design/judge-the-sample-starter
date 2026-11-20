@@ -1,17 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import csv from '../data/heart_rate_week.csv?raw';
-import { parseHeartRateCsv, parseDeviceMinute, recordingGaps, timelineSegments } from './data.js';
+import { loadHeartRatePopulation, parseDeviceMinute, recordingGaps, timelineSegments } from './data.js';
 import Stage3App from './Stage3App.jsx';
 import './style.css';
 
-const rows = parseHeartRateCsv(csv);
 const start = parseDeviceMinute('2016-04-25 00:00');
 const end = parseDeviceMinute('2016-05-02 00:00');
-const gaps = recordingGaps(rows, start, end);
-const segments = timelineSegments(rows);
 
-function Timeline({ id, name, sample, trueMean, sampleMean }) {
+function Timeline({ rows, id, name, sample, trueMean, sampleMean }) {
+  const gaps = useMemo(() => recordingGaps(rows, start, end), [rows]);
+  const segments = useMemo(() => timelineSegments(rows), [rows]);
   const W = 1120, H = 300;
   const left = 65, right = W - 25, top = 24, bottom = H - 62;
   const low = Math.floor(Math.min(...rows.map(r => r.heart_rate_bpm)) / 20) * 20;
@@ -45,4 +43,27 @@ class ErrorBoundary extends React.Component {
   render() { return this.state.error ? <main><h1>Unable to display the data</h1><p role="alert">{this.state.error.message}</p></main> : this.props.children; }
 }
 
-createRoot(document.getElementById('root')).render(<ErrorBoundary><Stage3App rows={rows} gaps={gaps} Timeline={Timeline}/></ErrorBoundary>);
+function LoadedApp({ rows }) {
+  const gaps = useMemo(() => recordingGaps(rows, start, end), [rows]);
+  const PopulationTimeline = useMemo(() => function PopulationTimeline(props) {
+    return <Timeline {...props} rows={rows}/>;
+  }, [rows]);
+  return <Stage3App rows={rows} gaps={gaps} Timeline={PopulationTimeline}/>;
+}
+
+function App() {
+  const [state, setState] = useState({ rows: null, error: null });
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    loadHeartRatePopulation(import.meta.env.BASE_URL + 'heart_rate_week.csv', fetch, controller.signal)
+      .then(rows => { if (active) setState({ rows, error: null }); })
+      .catch(error => { if (active && error.name !== 'AbortError') setState({ rows: null, error }); });
+    return () => { active = false; controller.abort(); };
+  }, []);
+  if (state.error) return <main><h1>Unable to load heart-rate data</h1><p role="alert">{state.error.message}</p><p>Refresh the page to retry.</p></main>;
+  if (!state.rows) return <main><h1>Wearable heart rate</h1><p role="status">Loading recorded minutes…</p></main>;
+  return <LoadedApp rows={state.rows}/>;
+}
+
+createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
