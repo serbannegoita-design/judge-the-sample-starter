@@ -152,7 +152,7 @@ export function methodSamples(rows, n, seed, column = 'activity_state') {
   };
 }
 
-// For future repeated-sampling displays; not run by the stage 3 app.
+// SD divides by the number of estimates, so RMSE^2 = bias^2 + SD^2.
 export function summarizeEstimates(estimates, trueMean) {
   if (!estimates.length || !estimates.every(Number.isFinite) || !Number.isFinite(trueMean)) {
     throw new Error('Finite estimates and a finite true mean are required.');
@@ -162,4 +162,118 @@ export function summarizeEstimates(estimates, trueMean) {
   const sd = Math.sqrt(estimates.reduce((sum, value) => sum + (value - center) ** 2, 0) / estimates.length);
   const rmse = Math.sqrt(estimates.reduce((sum, value) => sum + (value - trueMean) ** 2, 0) / estimates.length);
   return { bias, sd, rmse };
+}
+
+// No experiment runs until a UI Run button calls this function.
+// onSample is a verification hook, not a retained sample history.
+export function repeatedSampling(rows, { method, n, seed, repetitions = 100,
+  stratumColumn = 'activity_state', population = 'Baseline: heart_rate_week.csv' }, onSample) {
+  validateSize(rows, n);
+  if (!['srs','systematic','stratified'].includes(method)) throw new Error('Unknown sampling method.');
+  const exact = method === 'systematic' && rows.length % n === 0;
+  if (!exact && (!Number.isInteger(repetitions) || repetitions < 100 || repetitions > 1000)) {
+    throw new Error('Monte Carlo repetitions must be an integer from 100 to 1,000.');
+  }
+  if (!exact && (seed === undefined || !String(seed).trim())) throw new Error('A nonblank seed is required.');
+  const allocation = method === 'stratified' ? proportionalAllocation(rows,n,stratumColumn) : null;
+  const count = exact ? rows.length / n : repetitions;
+  const estimates = [], starts = [];
+  for (let index = 0; index < count; index++) {
+    const drawSeed = exact ? null : JSON.stringify([String(seed),method,n,
+      method === 'stratified' ? stratumColumn : null,index]);
+    let sample, estimate, start;
+    if (method === 'srs') {
+      sample = simpleRandomSample(rows,n,drawSeed);
+      estimate = mean(sample);
+    } else if (method === 'systematic') {
+      const result = exact ? systematicFromStart(rows,n,index+1) : systematicSample(rows,n,drawSeed);
+      sample = result.sample;
+      start = result.start;
+      estimate = mean(sample);
+      starts.push(start);
+    } else {
+      const strata = allocation.map(({ members, ...item }) => ({ ...item,
+        sample: simpleRandomSample(members,item.count,JSON.stringify([drawSeed,item.group])) }));
+      sample = strata.flatMap(item=>item.sample);
+      estimate = weightedStratifiedMean(strata);
+    }
+    if (onSample) onSample({ sample, estimate, index, start });
+    estimates.push(estimate);
+  }
+  const trueMean = mean(rows);
+  return {
+    sourceRows: rows, population, N: rows.length, method, n,
+    type: exact ? 'exact' : 'Monte Carlo', seed: exact ? null : String(seed),
+    count, repetitions: exact ? null : repetitions, starts, estimates, trueMean,
+    ...summarizeEstimates(estimates,trueMean),
+    settings: method === 'systematic' ? {
+      order: 'chronological recorded rows; gaps in clock time', interval: rows.length/n,
+      design: exact ? 'whole-number interval' : 'fractional interval'
+    } : method === 'stratified' ? {
+      stratumColumn, allocation: allocation.map(({members,quota,...item})=>item),
+      allocationRule: 'proportional; constrained largest remainder; alphabetical ties'
+    } : { selection: 'simple random without replacement' }
+  };
+}
+
+export function matchingRepeatedResult(result, rows, options) {
+  if (!result || result.sourceRows !== rows || result.method !== options.method ||
+      result.n !== options.n || result.population !== options.population) return false;
+  if (result.method === 'stratified' && result.settings.stratumColumn !== (options.stratumColumn || 'activity_state')) return false;
+  return result.type === 'exact' || (result.seed === String(options.seed) &&
+    result.repetitions === (options.repetitions ?? 100));
+}
+
+export function runExperiment(rows, experiment, options, reusableSrs = null) {
+  if (!['A','B'].includes(experiment)) throw new Error('Unknown experiment.');
+  const conditions = experiment === 'A'
+    ? [{method:'srs',n:100},{method:'systematic',n:100},{method:'stratified',n:100}]
+    : [1,10,100].map(n=>({method:'srs',n}));
+  return conditions.map(condition => {
+    const settings = { ...options, ...condition };
+    if (matchingRepeatedResult(reusableSrs,rows,settings)) return reusableSrs;
+    return repeatedSampling(rows,settings);
+  });
+}
+
+// Display bins have common boundaries across panels. Only the axis range is
+// shared: estimates and statistical summaries remain separate for each condition.
+export function alignedHistograms(results, binCount = 24) {
+  if (!results.length || !Number.isInteger(binCount) || binCount < 1) throw new Error('Invalid histogram input.');
+  let low=Infinity,high=-Infinity;
+  for (const result of results) {
+    for (const value of [result.trueMean,...result.estimates]) {
+      if (!Number.isFinite(value)) throw new Error('Histogram values must be finite.');
+      low=Math.min(low,value); high=Math.max(high,value);
+    }
+  }
+  const padding = high === low ? 1 : (high-low)*0.05;
+  low -= padding; high += padding;
+  const width=(high-low)/binCount;
+  const histograms=results.map(result=>{
+    const counts=Array(binCount).fill(0);
+    for (const value of result.estimates) counts[Math.max(0,Math.min(binCount-1,Math.floor((value-low)/width)))]++;
+    return counts;
+  });
+  const maxCount=Math.max(1,...histograms.flat());
+  return { low,high,width,binCount,histograms,maxCount };
+}
+
+export function challengePopulation(rows, relabelAllExercise) {
+  return rows.map(row => relabelAllExercise ? {...row,activity_state:'exercise'} : {...row});
+}
+
+export function runChallenge(baseline, modified, { n=100, seed, repetitions=100 }, onSample) {
+  // Preflight both populations before producing any result. No rule is relaxed.
+  proportionalAllocation(baseline,n,'activity_state');
+  proportionalAllocation(modified,n,'activity_state');
+  const conditions=[
+    {rows:baseline,population:'Baseline: original activity labels',method:'stratified'},
+    {rows:modified,population:'Modified: all activity labels set to exercise',method:'stratified'},
+    {rows:baseline,population:'Baseline: original activity labels',method:'srs'},
+    {rows:modified,population:'Modified: all activity labels set to exercise',method:'srs'}
+  ];
+  return conditions.map(({rows,population,method})=>repeatedSampling(rows,
+    {population,method,n,seed,repetitions,stratumColumn:'activity_state'},
+    onSample ? draw=>onSample({...draw,method,population}) : undefined));
 }

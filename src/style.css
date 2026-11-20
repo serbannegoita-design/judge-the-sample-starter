@@ -22,6 +22,12 @@ button:hover { background: #104996; }
 .method-panel details { padding: 12px 0 0; border: 0; border-top: 1px solid #dde3e9; border-radius: 0; }
 .method-panel .chart-scroll { margin-top: 12px; }
 #sample-size { width: 110px; }
+.stage4 { margin-top: 36px; }
+.experiment { margin-top: 24px; }
+select { font: inherit; padding: 9px 12px; border: 1px solid #aebdcc; border-radius: 4px; background: white; }
+button:disabled { cursor: wait; opacity: .6; }
+.challenge-condition { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.challenge-condition input { width: auto; margin-right: 8px; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 20px; padding: 22px 0; margin: 18px 0 8px; border-top: 1px solid #dde3e9; border-bottom: 1px solid #dde3e9; }
 dt { font-size: .82rem; line-height: 1.5; }
 dd { margin: 8px 0 0; font-size: 1.65rem; font-weight: 650; font-variant-numeric: tabular-nums; }

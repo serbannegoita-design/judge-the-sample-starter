@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { methodSamples } from './sampling.js';
+import Stage4Experiments from './Stage4Experiments.jsx';
+import Stage5Challenge from './Stage5Challenge.jsx';
 
 const format = value => value.toFixed(3);
 const clock = time => new Date(time).toISOString().slice(0,16).replace('T',' ');
@@ -87,6 +89,8 @@ export default function Stage3App({ rows, gaps, Timeline }) {
       <p>Start is inclusive and end is exclusive. All times are device local time.</p>
       <div className="table-scroll"><table><thead><tr><th>Start</th><th>End</th><th>Minutes without a reading</th></tr></thead><tbody>{gaps.map(g => <tr key={g.start}><td>{clock(g.start)}</td><td>{clock(g.end)}</td><td>{(g.end-g.start)/60000}</td></tr>)}</tbody></table></div>
     </details>
-    <footer><p>Activity labels are device-derived estimates. Missing minutes are not zero heart rate. These data describe one wearer’s recorded week, not other people or unrecorded minutes.</p><p>Source: Furberg R, Brinton J, Keating M, Ortiz A. Crowd-sourced Fitbit datasets. Zenodo, 2016. <a href="https://doi.org/10.5281/zenodo.53894">doi:10.5281/zenodo.53894</a> · CC BY 4.0. See <code>data/README.md</code> for extraction details.</p></footer>
+    <Stage4Experiments rows={rows}/>
+    <Stage5Challenge rows={rows}/>
+    <footer><p>Activity labels are device-derived estimates. Missing minutes are not zero heart rate. These data describe one wearer's recorded week, not other people or unrecorded minutes.</p><p>Source: Furberg R, Brinton J, Keating M, Ortiz A. Crowd-sourced Fitbit datasets. Zenodo, 2016. <a href="https://doi.org/10.5281/zenodo.53894">doi:10.5281/zenodo.53894</a> · CC BY 4.0. See <code>data/README.md</code> for extraction details.</p></footer>
   </main>;
 }
